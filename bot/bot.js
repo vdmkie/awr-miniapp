@@ -1,30 +1,34 @@
-const { Telegraf } = require("telegraf");
-const express = require("express");
+const TelegramBot = require("node-telegram-bot-api");
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const token = process.env.BOT_TOKEN;
+const webAppUrl = process.env.WEBAPP_URL;
 
-// === Telegram Bot ===
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new TelegramBot(token, { polling: true });
 
-// Пример команды
-bot.start((ctx) => ctx.reply("AWR bot started 🚀"));
-bot.hears("hi", (ctx) => ctx.reply("Hello 👋"));
-
-// Запуск бота
-bot.launch().then(() => {
-  console.log("AWR bot started");
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, "Отправьте свой номер", {
+    reply_markup: {
+      keyboard: [[{ text: "Поделиться номером", request_contact: true }]],
+      one_time_keyboard: true,
+    },
+  });
 });
 
-// === Express server for Render ===
-app.get("/", (req, res) => {
-  res.send("AWR bot running ✅");
-});
+bot.on("contact", (msg) => {
+  const phone = msg.contact.phone_number.startsWith("+")
+    ? msg.contact.phone_number
+    : "+" + msg.contact.phone_number;
 
-app.listen(PORT, () => {
-  console.log(`Web server is listening on port ${PORT}`);
+  bot.sendMessage(msg.chat.id, "Запустить AWR", {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "Open App",
+            web_app: { url: `${webAppUrl}?phone=${phone}` },
+          },
+        ],
+      ],
+    },
+  });
 });
-
-// Для корректного завершения
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
