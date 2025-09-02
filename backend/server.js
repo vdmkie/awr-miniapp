@@ -59,7 +59,35 @@ app.post('/auth/validate', (req,res)=>{
 
   const token = jwt.sign({id:user.id, role:user.role, team_id:user.team_id, name:user.name}, BOT_TOKEN, {expiresIn:'7d'});
   res.json({ token, role:user.role, team_id:user.team_id, name:user.name });
+});function normalizePhone(phone) {
+  // оставляем только цифры
+  let p = phone.replace(/\D/g, '');
+  // если начинается с 8 и длина 11 — приводим к формату России
+  if (p.length === 11 && p.startsWith('8')) {
+    p = '7' + p.slice(1);
+  }
+  return '+' + p;
+}
+
+app.post('/auth/validate', (req,res)=>{
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({error:'phone required'});
+
+  const normPhone = normalizePhone(phone);
+  const user = db.prepare('SELECT * FROM users WHERE phone=?').get(normPhone);
+
+  if (!user) {
+    return res.status(403).json({error:'Пользователь не найден. Обратитесь к администратору.'});
+  }
+
+  const token = jwt.sign(
+    { id:user.id, role:user.role, team_id:user.team_id, name:user.name },
+    BOT_TOKEN,
+    { expiresIn:'7d' }
+  );
+  res.json({ token, role:user.role, team_id:user.team_id, name:user.name });
 });
+
 
 // ---------------- TASKS (Admin + Brigade) ----------------
 
